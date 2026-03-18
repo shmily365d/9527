@@ -2,203 +2,479 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>机器人维修助手</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        
+        /* 顶部栏 */
+        .header {
+            background: rgba(26, 26, 46, 0.95);
+            padding: 15px 20px;
             display: flex;
-            justify-content: center;
             align-items: center;
-            padding: 20px;
+            gap: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
-        .chat-container {
-            width: 100%;
-            max-width: 600px;
-            height: 80vh;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+        .logo {
+            width: 45px;
+            height: 45px;
+            border-radius: 8px;
+            object-fit: contain;
+            background: #fff;
+            padding: 3px;
         }
-        .chat-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        .product-select {
+            flex: 1;
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 500;
+            outline: none;
+            cursor: pointer;
+        }
+        .product-select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+        
+        /* 欢迎区 */
+        .welcome {
             padding: 20px;
             text-align: center;
+            background: rgba(255,255,255,0.05);
         }
-        .chat-header h1 { font-size: 20px; font-weight: 600; margin-bottom: 5px; }
-        .chat-header p { font-size: 13px; opacity: 0.9; }
-        .chat-messages {
+        .welcome h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .welcome p {
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+        }
+        
+        /* 故障按钮网格 */
+        .fault-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 20px;
+        }
+        .fault-btn {
+            background: linear-gradient(135deg, rgba(102,126,234,0.2) 0%, rgba(118,75,162,0.2) 100%);
+            border: 1px solid rgba(102,126,234,0.3);
+            border-radius: 15px;
+            padding: 20px 15px;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+        .fault-btn:active {
+            transform: scale(0.98);
+            background: linear-gradient(135deg, rgba(102,126,234,0.3) 0%, rgba(118,75,162,0.3) 100%);
+        }
+        .fault-btn .icon {
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+        .fault-btn .text {
+            font-size: 15px;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.3;
+        }
+        
+        /* 消息区域 */
+        .chat-container {
             flex: 1;
             overflow-y: auto;
             padding: 20px;
-            background: #f8f9fa;
+            max-height: 50vh;
         }
         .message {
             margin-bottom: 20px;
-            display: flex;
-            align-items: flex-start;
-            animation: fadeIn 0.3s ease;
+            animation: slideUp 0.3s ease;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .message.user { flex-direction: row-reverse; }
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-        .bot-avatar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin-right: 12px;
-        }
-        .user-avatar {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            margin-left: 12px;
-        }
         .message-content {
-            max-width: 85%;
-            padding: 15px 18px;
-            border-radius: 18px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 15px;
             line-height: 1.6;
             font-size: 14px;
+            backdrop-filter: blur(10px);
         }
-        .bot-message .message-content {
-            background: white;
-            color: #333;
-            border-bottom-left-radius: 5px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-        .user-message .message-content {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-bottom-right-radius: 5px;
-        }
-        .message-content strong { font-weight: 600; color: #667eea; }
-        .user-message .message-content strong { color: white; }
-        .message-content ol, .message-content ul { margin: 10px 0; padding-left: 20px; }
-        .message-content li { margin: 5px 0; }
-        .category-tag {
-            display: inline-block;
-            background: #e7f3ff;
-            color: #0066cc;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            margin-bottom: 8px;
+        .message-content strong {
+            color: #667eea;
             font-weight: 600;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
         }
-        .chat-input-container {
-            padding: 20px;
-            background: white;
-            border-top: 1px solid #e9ecef;
+        .message-content ol, .message-content ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .message-content li {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        .step-tag {
+            display: inline-block;
+            background: rgba(102,126,234,0.3);
+            color: #fff;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .warning-box {
+            background: rgba(255,193,7,0.2);
+            border-left: 3px solid #ffc107;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        
+        /* 输入区域 */
+        .input-area {
+            padding: 15px 20px;
+            background: rgba(26,26,46,0.95);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            position: sticky;
+            bottom: 0;
+        }
+        .input-wrapper {
             display: flex;
-            gap: 12px;
+            gap: 10px;
+            align-items: center;
         }
         .chat-input {
             flex: 1;
             padding: 14px 18px;
-            border: 2px solid #e9ecef;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
             border-radius: 25px;
+            color: #fff;
             font-size: 14px;
             outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
         }
-        .chat-input:focus { border-color: #667eea; }
-        .send-button {
-            padding: 14px 28px;
+        .chat-input:focus {
+            background: rgba(255,255,255,0.15);
+            border-color: #667eea;
+        }
+        .chat-input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+        .send-btn {
+            width: 50px;
+            height: 50px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             border: none;
             border-radius: 25px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .send-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        .send-button:disabled { opacity: 0.6; cursor: not-allowed; }
-        .quick-questions {
-            padding: 15px 20px;
-            background: white;
-            border-top: 1px solid #e9ecef;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .quick-question {
-            padding: 8px 16px;
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 20px;
-            font-size: 13px;
-            color: #667eea;
+            color: #fff;
+            font-size: 20px;
             cursor: pointer;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
-        .quick-question:hover { background: #667eea; color: white; }
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* 底部栏 */
+        .footer {
+            padding: 15px 20px;
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+            background: rgba(26,26,46,0.95);
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* 隐藏滚动条 */
+        ::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+        }
+        
+        /* 移动端优化 */
         @media (max-width: 480px) {
-            body { padding: 0; }
-            .chat-container { height: 100vh; border-radius: 0; }
-            .message-content { max-width: 85%; }
-            .quick-questions { overflow-x: auto; flex-wrap: nowrap; }
+            .fault-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                padding: 15px;
+            }
+            .fault-btn {
+                min-height: 90px;
+                padding: 15px 10px;
+            }
+            .fault-btn .icon {
+                font-size: 28px;
+            }
+            .fault-btn .text {
+                font-size: 14px;
+            }
+            .header {
+                padding: 12px 15px;
+            }
+            .logo {
+                width: 40px;
+                height: 40px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <h1>🤖 机器人维修助手</h1>
-            <p>为现场工程师提供故障诊断指导</p>
+    <!-- 顶部栏 -->
+    <div class="header">
+        <img src="logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+        <select class="product-select" id="productSelect" onchange="changeProduct()">
+            <option value="run2">润 2 系列</option>
+            <option value="runc">润 C 系列</option>
+            <option value="rund" selected>润 D 系列</option>
+            <option value="通用">通用故障</option>
+        </select>
+    </div>
+    
+    <!-- 欢迎区 -->
+    <div class="welcome">
+        <h1 id="welcomeTitle">润 D 系列・故障诊断助手</h1>
+        <p>选择故障类型或描述问题</p>
+    </div>
+    
+    <!-- 故障按钮网格 -->
+    <div class="fault-grid">
+        <div class="fault-btn" onclick="searchFault('屏幕')">
+            <div class="icon">📱</div>
+            <div class="text">屏幕故障</div>
         </div>
-        <div class="chat-messages" id="chatMessages">
-            <div class="message bot-message">
-                <div class="avatar bot-avatar">🤖</div>
-                <div class="message-content">
-                    <strong>你好！我是机器人维修助手</strong><br><br>
-                    我可以帮你诊断：<br>
-                    • 屏幕故障（黑屏、蓝屏、触摸异常）<br>
-                    • 离线/网络问题<br>
-                    • 声音故障（无声音、杂音）<br>
-                    • 充电故障（充电慢、掉电快）<br>
-                    • 舱门问题（卡阻、异响）<br>
-                    • 激光/IMU 故障<br>
-                    • 电梯/楼层问题<br>
-                    • 轮子/行走异常<br>
-                    <br>
-                    请描述故障现象，我会帮你分析原因和解决方案！
-                </div>
-            </div>
+        <div class="fault-btn" onclick="searchFault('充电')">
+            <div class="icon">🔌</div>
+            <div class="text">充电故障</div>
         </div>
-        <div class="quick-questions">
-            <div class="quick-question" onclick="sendQuick('屏幕黑屏')">屏幕黑屏</div>
-            <div class="quick-question" onclick="sendQuick('机器人离线')">机器人离线</div>
-            <div class="quick-question" onclick="sendQuick('充电慢')">充电慢</div>
-            <div class="quick-question" onclick="sendQuick('舱门卡住')">舱门卡住</div>
-            <div class="quick-question" onclick="sendQuick('获取不到楼层')">获取不到楼层</div>
+        <div class="fault-btn" onclick="searchFault('舱门')">
+            <div class="icon">🚪</div>
+            <div class="text">舱门故障</div>
         </div>
-        <div class="chat-input-container">
-            <input type="text" class="chat-input" id="chatInput" placeholder="描述故障现象，如：屏幕黑屏、充电慢..." onkeypress="handleKeyPress(event)">
-            <button class="send-button" id="sendButton" onclick="sendMessage()">发送</button>
+        <div class="fault-btn" onclick="searchFault('电机')">
+            <div class="icon">⚙️</div>
+            <div class="text">电机故障</div>
+        </div>
+        <div class="fault-btn" onclick="searchFault('激光')">
+            <div class="icon">🔦</div>
+            <div class="text">激光故障</div>
+        </div>
+        <div class="fault-btn" onclick="searchFault('离线')">
+            <div class="icon">📡</div>
+            <div class="text">网络故障</div>
+        </div>
+        <div class="fault-btn" onclick="searchFault('声音')">
+            <div class="icon">🔊</div>
+            <div class="text">声音故障</div>
+        </div>
+        <div class="fault-btn" onclick="searchFault('电梯')">
+            <div class="icon">🏢</div>
+            <div class="text">电梯故障</div>
         </div>
     </div>
+    
+    <!-- 消息区域 -->
+    <div class="chat-container" id="chatContainer"></div>
+    
+    <!-- 输入区域 -->
+    <div class="input-area">
+        <div class="input-wrapper">
+            <input type="text" class="chat-input" id="chatInput" placeholder="描述其他故障" onkeypress="handleKeyPress(event)">
+            <button class="send-btn" onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+    
+    <!-- 底部栏 -->
+    <div class="footer">
+        <div style="margin-bottom:8px;">
+            <a href="tel:400-608-0917" style="color:#667eea;text-decoration:none;font-weight:600;font-size:14px;">
+                📞 客服热线：400-608-0917
+            </a>
+        </div>
+        <div style="color:rgba(255,255,255,0.4);font-size:12px;">
+            ©2026 云迹科技 机器人维修助手
+        </div>
+    </div>
+    
     <script src="knowledge-base.js"></script>
-    <script src="app.js"></script>
+    <script>
+        let currentProduct = 'rund';
+        
+        // 切换产品
+        function changeProduct() {
+            const select = document.getElementById('productSelect');
+            currentProduct = select.value;
+            
+            const titles = {
+                'run2': '润 2 系列・故障诊断助手',
+                'runc': '润 C 系列・故障诊断助手',
+                'rund': '润 D 系列・故障诊断助手',
+                '通用': '通用故障诊断助手'
+            };
+            
+            document.getElementById('welcomeTitle').textContent = titles[currentProduct] || '机器人维修助手';
+            
+            // 清空消息区
+            document.getElementById('chatContainer').innerHTML = '';
+        }
+        
+        // 搜索故障
+        function searchFault(keyword) {
+            const input = document.getElementById('chatInput');
+            input.value = keyword;
+            sendMessage();
+        }
+        
+        // 发送消息
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const query = input.value.trim();
+            if (!query) return;
+            
+            const container = document.getElementById('chatContainer');
+            const results = searchKnowledge(query);
+            
+            // 显示结果
+            container.innerHTML = '';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = `<div class="message-content">${results}</div>`;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+            
+            input.value = '';
+        }
+        
+        // 搜索知识库
+        function searchKnowledge(query) {
+            query = query.toLowerCase();
+            let results = [];
+            
+            for (const item of knowledgeBase) {
+                // 产品筛选
+                if (item['产品'] !== '通用' && item['产品'] !== currentProduct) continue;
+                
+                // 搜索匹配
+                const symptom = item['故障现象'].toLowerCase();
+                const category = item['故障分类'].toLowerCase();
+                const keywords = item['关键词'] || [];
+                
+                if (symptom.includes(query) || category.includes(query) || 
+                    keywords.some(k => k.toLowerCase().includes(query))) {
+                    results.push(item);
+                }
+            }
+            
+            if (results.length > 0) {
+                return formatResult(results[0]);
+            } else {
+                return `
+                    <div style="text-align:center;padding:20px;">
+                        <div style="font-size:40px;margin-bottom:10px;">🔍</div>
+                        <div>未找到匹配的故障</div>
+                        <div style="color:rgba(255,255,255,0.5);font-size:13px;margin-top:10px;">
+                            请尝试其他关键词或联系研发支持
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // 格式化结果
+        function formatResult(item) {
+            let html = `<strong>📋 ${item['故障现象']}</strong>`;
+            
+            html += `<div style="margin:15px 0;">`;
+            html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">🔍 可能原因：</div>`;
+            html += `<ol style="margin:0;padding-left:20px;">`;
+            item['可能原因'].forEach((cause, i) => {
+                html += `<li style="margin:8px 0;">${cause}</li>`;
+            });
+            html += `</ol>`;
+            html += `</div>`;
+            
+            html += `<div style="margin:15px 0;">`;
+            html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">🔧 排查步骤：</div>`;
+            html += `<ol style="margin:0;padding-left:20px;">`;
+            item['排查步骤'].forEach((step, i) => {
+                html += `<li style="margin:8px 0;">${step}</li>`;
+            });
+            html += `</ol>`;
+            html += `</div>`;
+            
+            if (item['需要备件'] && item['需要备件'].length > 0) {
+                html += `<div style="margin:15px 0;">`;
+                html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">📦 需要备件：</div>`;
+                html += `<div style="color:rgba(255,255,255,0.8);">${item['需要备件'].join('、')}</div>`;
+                html += `</div>`;
+            }
+            
+            if (item['维修难度'] || item['预计时间']) {
+                html += `<div style="display:flex;gap:15px;margin-top:15px;">`;
+                if (item['维修难度']) {
+                    html += `<div style="background:rgba(102,126,234,0.2);padding:8px 12px;border-radius:8px;font-size:13px;">`;
+                    html += `<span style="color:#667eea;">难度：</span>${item['维修难度']}`;
+                    html += `</div>`;
+                }
+                if (item['预计时间']) {
+                    html += `<div style="background:rgba(102,126,234,0.2);padding:8px 12px;border-radius:8px;font-size:13px;">`;
+                    html += `<span style="color:#667eea;">时间：</span>${item['预计时间']}`;
+                    html += `</div>`;
+                }
+                html += `</div>`;
+            }
+            
+            if (item['备注']) {
+                html += `<div class="warning-box">💡 ${item['备注']}</div>`;
+            }
+            
+            return html;
+        }
+        
+        // 回车发送
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        // 初始化
+        changeProduct();
+    </script>
 </body>
 </html>
