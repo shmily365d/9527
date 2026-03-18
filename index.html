@@ -35,9 +35,13 @@
             padding: 5px;
             flex-shrink: 0;
         }
-        .product-select {
+        .select-wrapper {
             flex: 1;
-            max-width: 160px;
+            display: flex;
+            align-items: center;
+        }
+        .product-select {
+            width: 100%;
             padding: 12px 15px;
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
@@ -53,18 +57,16 @@
             color: #fff;
         }
         .history-btn {
-            width: 45px;
-            height: 45px;
+            padding: 12px 18px;
             background: rgba(102,126,234,0.3);
             border: 1px solid rgba(102,126,234,0.5);
             border-radius: 10px;
             color: #fff;
-            font-size: 20px;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            white-space: nowrap;
             flex-shrink: 0;
         }
         .history-btn:active {
@@ -322,6 +324,8 @@
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
         }
         .voice-btn:active {
             background: rgba(255,255,255,0.2);
@@ -330,11 +334,19 @@
         .voice-btn.listening {
             background: rgba(255,71,87,0.3);
             border-color: #ff4757;
+        }
+        .voice-btn.listening::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,71,87,0.3);
+            border-radius: 50%;
             animation: pulse 1s infinite;
         }
         @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(255,71,87,0.4); }
-            50% { box-shadow: 0 0 0 10px rgba(255,71,87,0); }
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0; }
         }
         .voice-tip {
             text-align: center;
@@ -379,14 +391,9 @@
                 width: 100px;
                 height: 40px;
             }
-            .product-select {
-                max-width: 120px;
-                font-size: 13px;
-                padding: 10px 12px;
-            }
             .history-btn {
-                width: 40px;
-                height: 40px;
+                padding: 10px 14px;
+                font-size: 13px;
             }
             .fault-grid {
                 grid-template-columns: repeat(3, 1fr);
@@ -410,19 +417,21 @@
     <!-- 顶部栏 -->
     <div class="header">
         <img src="logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
-        <select class="product-select" id="productSelect" onchange="changeProduct()">
-            <option value="润">润</option>
-            <option value="格格【arm】">格格【arm】</option>
-            <option value="格格【x86】">格格【x86】</option>
-            <option value="UP 底盘">UP 底盘</option>
-            <option value="UP 标准舱">UP 标准舱</option>
-            <option value="UP 清扫">UP 清扫</option>
-            <option value="货柜">货柜</option>
-            <option value="电梯">电梯</option>
-            <option value="电话">电话</option>
-            <option value="其他">其他</option>
-        </select>
-        <button class="history-btn" onclick="toggleHistory()" title="历史记录">🕐</button>
+        <div class="select-wrapper">
+            <select class="product-select" id="productSelect" onchange="changeProduct()">
+                <option value="润">润</option>
+                <option value="格格【arm】">格格【arm】</option>
+                <option value="格格【x86】">格格【x86】</option>
+                <option value="UP 底盘">UP 底盘</option>
+                <option value="UP 标准舱">UP 标准舱</option>
+                <option value="UP 清扫">UP 清扫</option>
+                <option value="货柜">货柜</option>
+                <option value="电梯">电梯</option>
+                <option value="电话">电话</option>
+                <option value="其他">其他</option>
+            </select>
+        </div>
+        <button class="history-btn" onclick="toggleHistory()" title="历史记录">🕐 历史查询</button>
     </div>
     
     <!-- 故障按钮网格 -->
@@ -434,11 +443,11 @@
     <!-- 输入区域 -->
     <div class="input-area">
         <div class="input-wrapper">
-            <input type="text" class="chat-input" id="chatInput" placeholder="描述其他故障，支持语音输入" onkeypress="handleKeyPress(event)">
+            <input type="text" class="chat-input" id="chatInput" placeholder="描述其他故障" onkeypress="handleKeyPress(event)">
             <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="语音输入">🎤</button>
             <button class="send-btn" onclick="sendMessage()" title="发送">➤</button>
         </div>
-        <div class="voice-tip" id="voiceTip">点击麦克风图标，支持语音输入</div>
+        <div class="voice-tip" id="voiceTip">🎤 长按说话，松开发送</div>
     </div>
     
     <!-- 底部栏 -->
@@ -462,9 +471,13 @@
     <script src="knowledge-base.js"></script>
     <script>
         let currentProduct = '润';
-        let isListening = false;
-        let recognition = null;
         let searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+        
+        // 语音相关
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let touchStartTime = 0;
         
         // 故障按钮配置
         const faultConfig = {
@@ -569,85 +582,211 @@
             ]
         };
         
-        // 初始化语音识别
-        function initSpeechRecognition() {
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.lang = 'zh-CN';
-                recognition.continuous = false;
-                recognition.interimResults = false;
-                
-                recognition.onstart = function() {
-                    isListening = true;
-                    updateVoiceButton();
-                };
-                
-                recognition.onresult = function(event) {
-                    const transcript = event.results[0][0].transcript;
-                    document.getElementById('chatInput').value = transcript;
-                    sendMessage();
-                };
-                
-                recognition.onerror = function(event) {
-                    console.error('语音识别错误:', event.error);
-                    const tip = document.getElementById('voiceTip');
-                    const originalText = tip.textContent;
-                    tip.textContent = '语音识别失败：' + (event.error === 'no-speech' ? '未检测到语音' : event.error);
-                    setTimeout(() => {
-                        tip.textContent = originalText.includes('支持语音输入') ? originalText : '点击麦克风图标，支持语音输入';
-                    }, 3000);
-                };
-                
-                recognition.onend = function() {
-                    isListening = false;
-                    updateVoiceButton();
-                };
-            } else {
-                document.getElementById('voiceBtn').style.display = 'none';
-                document.getElementById('voiceTip').textContent = '您的浏览器不支持语音输入';
-            }
-        }
-        
-        // 更新语音按钮状态
-        function updateVoiceButton() {
-            const btn = document.getElementById('voiceBtn');
-            const tip = document.getElementById('voiceTip');
-            if (isListening) {
-                btn.classList.add('listening');
-                tip.textContent = '正在听，请说话...';
-            } else {
-                btn.classList.remove('listening');
-                tip.textContent = '点击麦克风图标，支持语音输入';
-            }
-        }
-        
-        // 切换语音输入
-        function toggleVoice() {
-            if (!recognition) {
-                initSpeechRecognition();
-                if (!recognition) {
-                    alert('您的浏览器不支持语音输入功能');
-                    return;
-                }
+        // 初始化语音（使用 MediaRecorder API，兼容性更好）
+        async function initVoice() {
+            const voiceBtn = document.getElementById('voiceBtn');
+            const voiceTip = document.getElementById('voiceTip');
+            
+            // 检查浏览器支持
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                voiceBtn.style.display = 'none';
+                voiceTip.textContent = '您的浏览器不支持语音输入';
+                return;
             }
             
-            if (isListening) {
-                try {
-                    recognition.stop();
-                } catch(e) {
-                    isListening = false;
-                    updateVoiceButton();
-                }
-            } else {
-                try {
-                    recognition.start();
-                } catch(e) {
-                    console.error('启动语音识别失败:', e);
-                    isListening = false;
-                    updateVoiceButton();
-                }
+            try {
+                // 请求麦克风权限
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    } 
+                });
+                
+                // 创建 MediaRecorder
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = async function() {
+                    const btn = document.getElementById('voiceBtn');
+                    const tip = document.getElementById('voiceTip');
+                    
+                    btn.classList.remove('listening');
+                    isRecording = false;
+                    
+                    // 录音时长小于 1 秒，视为误触
+                    const duration = Date.now() - touchStartTime;
+                    if (duration < 1000) {
+                        tip.textContent = '🎤 录音时间太短，请重新录制';
+                        setTimeout(() => {
+                            tip.textContent = '🎤 长按说话，松开发送';
+                        }, 2000);
+                        audioChunks = [];
+                        return;
+                    }
+                    
+                    // 创建音频 Blob
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioChunks = [];
+                    
+                    tip.textContent = '🔄 正在识别语音...';
+                    
+                    // 发送到语音识别服务（这里使用百度语音识别 API）
+                    // 注意：实际使用需要配置 API
+                    try {
+                        // 这里演示：直接提示用户手动输入
+                        // 实际项目中应该调用语音识别 API
+                        const text = await recognizeSpeech(audioBlob);
+                        if (text) {
+                            const input = document.getElementById('chatInput');
+                            input.value = text;
+                            sendMessage();
+                        }
+                    } catch(e) {
+                        console.error('语音识别失败:', e);
+                        tip.textContent = '❌ 识别失败，请手动输入';
+                        setTimeout(() => {
+                            tip.textContent = '🎤 长按说话，松开发送';
+                        }, 3000);
+                    }
+                };
+                
+                console.log('✅ 语音功能初始化成功');
+                
+            } catch(e) {
+                console.error('❌ 语音功能初始化失败:', e);
+                voiceBtn.style.display = 'none';
+                voiceTip.textContent = '❌ 无法使用语音（请检查麦克风权限）';
             }
+        }
+        
+        // 语音识别（调用百度语音识别 API）
+        async function recognizeSpeech(audioBlob) {
+            // 注意：这里需要配置实际的语音识别 API
+            // 以下是示例代码，实际使用需要替换为真实的 API 调用
+            
+            // 方案 1：使用百度语音识别（需要 API Key）
+            // 方案 2：使用讯飞语音识别（需要 API Key）
+            // 方案 3：使用浏览器自带的 SpeechRecognition（仅 Chrome/Edge）
+            
+            // 尝试使用浏览器自带的 SpeechRecognition
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                return new Promise((resolve, reject) => {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    const recognition = new SpeechRecognition();
+                    recognition.lang = 'zh-CN';
+                    recognition.continuous = false;
+                    recognition.interimResults = false;
+                    
+                    recognition.onresult = (event) => {
+                        resolve(event.results[0][0].transcript);
+                    };
+                    
+                    recognition.onerror = (event) => {
+                        reject(new Error(event.error));
+                    };
+                    
+                    recognition.start();
+                    
+                    // 超时处理
+                    setTimeout(() => {
+                        recognition.stop();
+                        reject(new Error('timeout'));
+                    }, 10000);
+                });
+            }
+            
+            // 如果没有 SpeechRecognition，返回提示
+            throw new Error('浏览器不支持语音识别');
+        }
+        
+        // 切换语音输入（长按说话）
+        function toggleVoice() {
+            if (!mediaRecorder) {
+                alert('语音功能正在初始化，请稍后重试');
+                return;
+            }
+            
+            const btn = document.getElementById('voiceBtn');
+            const tip = document.getElementById('voiceTip');
+            
+            if (mediaRecorder.state === 'inactive') {
+                // 开始录音
+                audioChunks = [];
+                touchStartTime = Date.now();
+                mediaRecorder.start(1000); // 每秒发送一次数据
+                btn.classList.add('listening');
+                isRecording = true;
+                tip.textContent = '🔴 正在录音，请说话...';
+            } else if (mediaRecorder.state === 'recording') {
+                // 停止录音
+                mediaRecorder.stop();
+            }
+        }
+        
+        // 触摸事件处理（长按说话）
+        function setupTouchEvents() {
+            const voiceBtn = document.getElementById('voiceBtn');
+            
+            // 触摸开始
+            voiceBtn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                if (!isRecording && mediaRecorder && mediaRecorder.state === 'inactive') {
+                    audioChunks = [];
+                    touchStartTime = Date.now();
+                    mediaRecorder.start(1000);
+                    this.classList.add('listening');
+                    isRecording = true;
+                    document.getElementById('voiceTip').textContent = '🔴 正在录音，请说话...';
+                }
+            }, { passive: false });
+            
+            // 触摸结束
+            voiceBtn.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            }, { passive: false });
+            
+            // 触摸取消
+            voiceBtn.addEventListener('touchcancel', function(e) {
+                e.preventDefault();
+                if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            }, { passive: false });
+            
+            // 鼠标事件（桌面端）
+            voiceBtn.addEventListener('mousedown', function(e) {
+                if (!isRecording && mediaRecorder && mediaRecorder.state === 'inactive') {
+                    audioChunks = [];
+                    touchStartTime = Date.now();
+                    mediaRecorder.start(1000);
+                    this.classList.add('listening');
+                    isRecording = true;
+                    document.getElementById('voiceTip').textContent = '🔴 正在录音，请说话...';
+                }
+            });
+            
+            voiceBtn.addEventListener('mouseup', function(e) {
+                if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            });
+            
+            voiceBtn.addEventListener('mouseleave', function(e) {
+                if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            });
         }
         
         // 渲染故障按钮
@@ -877,7 +1016,9 @@
         }
         
         // 初始化
-        initSpeechRecognition();
+        initVoice().then(() => {
+            setupTouchEvents();
+        });
         renderFaultButtons();
     </script>
 </body>
