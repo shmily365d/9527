@@ -260,7 +260,7 @@
             background: rgba(255,71,87,0.3);
         }
         
-        /* 输入区域 */
+        /* 输入区域 - 去掉语音按钮 */
         .input-area {
             padding: 15px 20px;
             background: rgba(26,26,46,0.95);
@@ -272,7 +272,6 @@
             display: flex;
             gap: 10px;
             align-items: center;
-            margin-bottom: 8px;
         }
         .chat-input {
             flex: 1;
@@ -309,50 +308,6 @@
         }
         .send-btn:active {
             transform: scale(0.95);
-        }
-        .voice-btn {
-            width: 50px;
-            height: 50px;
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 25px;
-            color: #fff;
-            font-size: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            position: relative;
-            overflow: hidden;
-        }
-        .voice-btn:active {
-            background: rgba(255,255,255,0.2);
-            transform: scale(0.95);
-        }
-        .voice-btn.listening {
-            background: rgba(255,71,87,0.3);
-            border-color: #ff4757;
-        }
-        .voice-btn.listening::after {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: rgba(255,71,87,0.3);
-            border-radius: 50%;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.3); opacity: 0; }
-        }
-        .voice-tip {
-            text-align: center;
-            font-size: 12px;
-            color: rgba(255,255,255,0.5);
-            margin-top: 8px;
         }
         
         /* 底部栏 */
@@ -440,14 +395,12 @@
     <!-- 消息区域 -->
     <div class="chat-container" id="chatContainer"></div>
     
-    <!-- 输入区域 -->
+    <!-- 输入区域 - 无语音按钮 -->
     <div class="input-area">
         <div class="input-wrapper">
-            <input type="text" class="chat-input" id="chatInput" placeholder="描述其他故障" onkeypress="handleKeyPress(event)">
-            <button class="voice-btn" id="voiceBtn" title="语音输入">🎤</button>
+            <input type="text" class="chat-input" id="chatInput" placeholder="输入故障现象，如：屏幕黑屏" onkeypress="handleKeyPress(event)">
             <button class="send-btn" onclick="sendMessage()" title="发送">➤</button>
         </div>
-        <div class="voice-tip" id="voiceTip">🎤 长按说话，松开发送</div>
     </div>
     
     <!-- 底部栏 -->
@@ -599,8 +552,6 @@
             const select = document.getElementById('productSelect');
             currentProduct = select.value;
             renderFaultButtons();
-            
-            // 清空消息区
             document.getElementById('chatContainer').innerHTML = '';
         }
         
@@ -622,17 +573,13 @@
                 minute: '2-digit' 
             });
             
-            // 移除重复项
             searchHistory = searchHistory.filter(item => item.keyword !== keyword);
-            
-            // 添加到开头
             searchHistory.unshift({
                 keyword: keyword,
                 time: timeStr,
                 timestamp: now.getTime()
             });
             
-            // 限制最多 20 条
             if (searchHistory.length > 20) {
                 searchHistory = searchHistory.slice(0, 20);
             }
@@ -694,7 +641,6 @@
             const container = document.getElementById('chatContainer');
             const results = searchKnowledge(query);
             
-            // 显示结果
             container.innerHTML = '';
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message';
@@ -710,12 +656,7 @@
             query = query.toLowerCase();
             let results = [];
             
-            // 遍历知识库（支持两种格式）
-            // 格式 1: knowledgeBase.faults[] (嵌套格式)
-            // 格式 2: knowledgeBase[] (扁平格式)
-            
             if (knowledgeBase.faults && Array.isArray(knowledgeBase.faults)) {
-                // 嵌套格式
                 for (const category of knowledgeBase.faults) {
                     if (category.items && Array.isArray(category.items)) {
                         for (const item of category.items) {
@@ -726,7 +667,6 @@
                     }
                 }
             } else if (Array.isArray(knowledgeBase)) {
-                // 扁平格式
                 for (const item of knowledgeBase) {
                     if (matchesQuery(item, query)) {
                         results.push(item);
@@ -751,43 +691,18 @@
         
         // 匹配查询
         function matchesQuery(item, query) {
-            // 检查症状
-            if (item.symptom && item.symptom.toLowerCase().includes(query)) {
-                return true;
-            }
-            
-            // 检查分类
-            if (item.category && item.category.toLowerCase().includes(query)) {
-                return true;
-            }
-            
-            // 检查原因
+            if (item.symptom && item.symptom.toLowerCase().includes(query)) return true;
+            if (item.category && item.category.toLowerCase().includes(query)) return true;
             if (item.causes) {
                 for (const cause of item.causes) {
-                    if (cause.toLowerCase().includes(query)) {
-                        return true;
-                    }
+                    if (cause.toLowerCase().includes(query)) return true;
                 }
             }
-            
-            // 检查解决方案
             if (item.solutions) {
                 for (const solution of item.solutions) {
-                    if (solution.toLowerCase().includes(query)) {
-                        return true;
-                    }
+                    if (solution.toLowerCase().includes(query)) return true;
                 }
             }
-            
-            // 检查关键词
-            if (item.keywords) {
-                for (const keyword of item.keywords) {
-                    if (keyword.toLowerCase().includes(query)) {
-                        return true;
-                    }
-                }
-            }
-            
             return false;
         }
         
@@ -815,35 +730,6 @@
                 });
                 html += `</ol>`;
                 html += `</div>`;
-            }
-            
-            if (item.parts || item['需要备件']) {
-                const parts = item.parts || item['需要备件'];
-                if (parts && parts.length > 0) {
-                    html += `<div style="margin:15px 0;">`;
-                    html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">📦 需要备件：</div>`;
-                    html += `<div style="color:rgba(255,255,255,0.8);">${Array.isArray(parts) ? parts.join('、') : parts}</div>`;
-                    html += `</div>`;
-                }
-            }
-            
-            if (item.difficulty || item['维修难度']) {
-                const difficulty = item.difficulty || item['维修难度'];
-                html += `<div style="background:rgba(102,126,234,0.2);padding:8px 12px;border-radius:8px;font-size:13px;display:inline-block;margin-top:10px;">`;
-                html += `<span style="color:#667eea;">难度：</span>${difficulty}`;
-                html += `</div>`;
-            }
-            
-            if (item.time || item['预计时间']) {
-                const time = item.time || item['预计时间'];
-                html += `<div style="background:rgba(102,126,234,0.2);padding:8px 12px;border-radius:8px;font-size:13px;display:inline-block;margin-top:10px;margin-left:10px;">`;
-                html += `<span style="color:#667eea;">时间：</span>${time}`;
-                html += `</div>`;
-            }
-            
-            if (item.note || item['备注']) {
-                const note = item.note || item['备注'];
-                html += `<div class="warning-box">💡 ${note}</div>`;
             }
             
             return html;
