@@ -17,7 +17,7 @@
         /* 顶部栏 */
         .header {
             background: rgba(26, 26, 46, 0.95);
-            padding: 15px 20px;
+            padding: 12px 20px;
             display: flex;
             align-items: center;
             gap: 15px;
@@ -27,21 +27,23 @@
             z-index: 100;
         }
         .logo {
-            width: 45px;
+            width: 120px;
             height: 45px;
             border-radius: 8px;
             object-fit: contain;
             background: #fff;
-            padding: 3px;
+            padding: 5px;
+            flex-shrink: 0;
         }
         .product-select {
             flex: 1;
+            max-width: 200px;
             padding: 12px 15px;
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
             border-radius: 10px;
             color: #fff;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 500;
             outline: none;
             cursor: pointer;
@@ -49,22 +51,6 @@
         .product-select option {
             background: #1a1a2e;
             color: #fff;
-        }
-        
-        /* 欢迎区 */
-        .welcome {
-            padding: 20px;
-            text-align: center;
-            background: rgba(255,255,255,0.05);
-        }
-        .welcome h1 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-        .welcome p {
-            font-size: 13px;
-            color: rgba(255,255,255,0.6);
         }
         
         /* 故障按钮网格 */
@@ -78,8 +64,8 @@
             background: linear-gradient(135deg, rgba(102,126,234,0.2) 0%, rgba(118,75,162,0.2) 100%);
             border: 1px solid rgba(102,126,234,0.3);
             border-radius: 15px;
-            padding: 20px 15px;
-            min-height: 100px;
+            padding: 25px 15px;
+            min-height: 110px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -94,8 +80,8 @@
             background: linear-gradient(135deg, rgba(102,126,234,0.3) 0%, rgba(118,75,162,0.3) 100%);
         }
         .fault-btn .icon {
-            font-size: 32px;
-            margin-bottom: 5px;
+            font-size: 36px;
+            margin-bottom: 8px;
         }
         .fault-btn .text {
             font-size: 15px;
@@ -142,16 +128,6 @@
             margin: 8px 0;
             line-height: 1.5;
         }
-        .step-tag {
-            display: inline-block;
-            background: rgba(102,126,234,0.3);
-            color: #fff;
-            padding: 3px 10px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-right: 8px;
-        }
         .warning-box {
             background: rgba(255,193,7,0.2);
             border-left: 3px solid #ffc107;
@@ -173,6 +149,7 @@
             display: flex;
             gap: 10px;
             align-items: center;
+            margin-bottom: 8px;
         }
         .chat-input {
             flex: 1;
@@ -210,15 +187,59 @@
         .send-btn:active {
             transform: scale(0.95);
         }
+        .voice-btn {
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 25px;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .voice-btn:active {
+            background: rgba(255,255,255,0.2);
+            transform: scale(0.95);
+        }
+        .voice-btn.listening {
+            background: rgba(255,71,87,0.3);
+            border-color: #ff4757;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,71,87,0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(255,71,87,0); }
+        }
+        .voice-tip {
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            margin-top: 8px;
+        }
         
         /* 底部栏 */
         .footer {
             padding: 15px 20px;
             text-align: center;
-            font-size: 12px;
-            color: rgba(255,255,255,0.4);
             background: rgba(26,26,46,0.95);
             border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .footer a {
+            color:#667eea;
+            text-decoration:none;
+            font-weight:600;
+            font-size:14px;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .footer .copyright {
+            color:rgba(255,255,255,0.4);
+            font-size:12px;
         }
         
         /* 隐藏滚动条 */
@@ -229,27 +250,33 @@
         
         /* 移动端优化 */
         @media (max-width: 480px) {
+            .header {
+                padding: 12px 15px;
+                gap: 10px;
+            }
+            .logo {
+                width: 100px;
+                height: 40px;
+            }
+            .product-select {
+                max-width: 140px;
+                font-size: 13px;
+                padding: 10px 12px;
+            }
             .fault-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 10px;
                 padding: 15px;
             }
             .fault-btn {
-                min-height: 90px;
-                padding: 15px 10px;
+                min-height: 100px;
+                padding: 20px 12px;
             }
             .fault-btn .icon {
-                font-size: 28px;
+                font-size: 32px;
             }
             .fault-btn .text {
                 font-size: 14px;
-            }
-            .header {
-                padding: 12px 15px;
-            }
-            .logo {
-                width: 40px;
-                height: 40px;
             }
         }
     </style>
@@ -259,17 +286,17 @@
     <div class="header">
         <img src="logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
         <select class="product-select" id="productSelect" onchange="changeProduct()">
-            <option value="run2">润 2 系列</option>
-            <option value="runc">润 C 系列</option>
-            <option value="rund" selected>润 D 系列</option>
-            <option value="通用">通用故障</option>
+            <option value="润">润</option>
+            <option value="格格【arm】">格格【arm】</option>
+            <option value="格格【x86】">格格【x86】</option>
+            <option value="UP 底盘">UP 底盘</option>
+            <option value="UP 标准舱">UP 标准舱</option>
+            <option value="UP 清扫">UP 清扫</option>
+            <option value="货柜">货柜</option>
+            <option value="电梯">电梯</option>
+            <option value="电话">电话</option>
+            <option value="其他">其他</option>
         </select>
-    </div>
-    
-    <!-- 欢迎区 -->
-    <div class="welcome">
-        <h1 id="welcomeTitle">润 D 系列・故障诊断助手</h1>
-        <p>选择故障类型或描述问题</p>
     </div>
     
     <!-- 故障按钮网格 -->
@@ -314,40 +341,84 @@
     <!-- 输入区域 -->
     <div class="input-area">
         <div class="input-wrapper">
-            <input type="text" class="chat-input" id="chatInput" placeholder="描述其他故障" onkeypress="handleKeyPress(event)">
-            <button class="send-btn" onclick="sendMessage()">➤</button>
+            <input type="text" class="chat-input" id="chatInput" placeholder="描述其他故障，支持语音输入" onkeypress="handleKeyPress(event)">
+            <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="语音输入">🎤</button>
+            <button class="send-btn" onclick="sendMessage()" title="发送">➤</button>
         </div>
+        <div class="voice-tip" id="voiceTip">点击麦克风图标，支持语音输入</div>
     </div>
     
     <!-- 底部栏 -->
     <div class="footer">
-        <div style="margin-bottom:8px;">
-            <a href="tel:400-608-0917" style="color:#667eea;text-decoration:none;font-weight:600;font-size:14px;">
-                📞 客服热线：400-608-0917
-            </a>
-        </div>
-        <div style="color:rgba(255,255,255,0.4);font-size:12px;">
-            ©2026 云迹科技 机器人维修助手
-        </div>
+        <a href="tel:400-608-0917">📞 客服热线：400-608-0917</a>
+        <div class="copyright">©2026 云迹科技 机器人维修助手</div>
     </div>
     
     <script src="knowledge-base.js"></script>
     <script>
-        let currentProduct = 'rund';
+        let currentProduct = '润';
+        let isListening = false;
+        let recognition = null;
+        
+        // 初始化语音识别
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.lang = 'zh-CN';
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                
+                recognition.onstart = function() {
+                    isListening = true;
+                    document.getElementById('voiceBtn').classList.add('listening');
+                    document.getElementById('voiceTip').textContent = '正在听，请说话...';
+                };
+                
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    document.getElementById('chatInput').value = transcript;
+                    sendMessage();
+                };
+                
+                recognition.onerror = function(event) {
+                    document.getElementById('voiceTip').textContent = '语音识别失败，请手动输入';
+                    setTimeout(() => {
+                        document.getElementById('voiceTip').textContent = '点击麦克风图标，支持语音输入';
+                    }, 3000);
+                };
+                
+                recognition.onend = function() {
+                    isListening = false;
+                    document.getElementById('voiceBtn').classList.remove('listening');
+                };
+            } else {
+                document.getElementById('voiceBtn').style.display = 'none';
+                document.getElementById('voiceTip').textContent = '您的浏览器不支持语音输入';
+            }
+        }
+        
+        // 切换语音输入
+        function toggleVoice() {
+            if (!recognition) {
+                initSpeechRecognition();
+                if (!recognition) {
+                    alert('您的浏览器不支持语音输入功能');
+                    return;
+                }
+            }
+            
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
         
         // 切换产品
         function changeProduct() {
             const select = document.getElementById('productSelect');
             currentProduct = select.value;
-            
-            const titles = {
-                'run2': '润 2 系列・故障诊断助手',
-                'runc': '润 C 系列・故障诊断助手',
-                'rund': '润 D 系列・故障诊断助手',
-                '通用': '通用故障诊断助手'
-            };
-            
-            document.getElementById('welcomeTitle').textContent = titles[currentProduct] || '机器人维修助手';
             
             // 清空消息区
             document.getElementById('chatContainer').innerHTML = '';
@@ -387,7 +458,11 @@
             
             for (const item of knowledgeBase) {
                 // 产品筛选
-                if (item['产品'] !== '通用' && item['产品'] !== currentProduct) continue;
+                const productMatch = item['产品'] === currentProduct || 
+                                    item['产品'] === '通用' ||
+                                    (item['产品别名'] && item['产品别名'].some(alias => alias === currentProduct));
+                
+                if (!productMatch) continue;
                 
                 // 搜索匹配
                 const symptom = item['故障现象'].toLowerCase();
@@ -408,7 +483,7 @@
                         <div style="font-size:40px;margin-bottom:10px;">🔍</div>
                         <div>未找到匹配的故障</div>
                         <div style="color:rgba(255,255,255,0.5);font-size:13px;margin-top:10px;">
-                            请尝试其他关键词或联系研发支持
+                            请尝试其他关键词或拨打客服热线：400-608-0917
                         </div>
                     </div>
                 `;
@@ -445,7 +520,7 @@
             }
             
             if (item['维修难度'] || item['预计时间']) {
-                html += `<div style="display:flex;gap:15px;margin-top:15px;">`;
+                html += `<div style="display:flex;gap:15px;margin-top:15px;flex-wrap:wrap;">`;
                 if (item['维修难度']) {
                     html += `<div style="background:rgba(102,126,234,0.2);padding:8px 12px;border-radius:8px;font-size:13px;">`;
                     html += `<span style="color:#667eea;">难度：</span>${item['维修难度']}`;
@@ -474,7 +549,7 @@
         }
         
         // 初始化
-        changeProduct();
+        initSpeechRecognition();
     </script>
 </body>
 </html>
