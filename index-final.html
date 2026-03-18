@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>机器人维修助手</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        
+        /* 顶部栏 */
+        .header {
+            background: rgba(26, 26, 46, 0.95);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo {
+            width: 120px;
+            height: 45px;
+            border-radius: 8px;
+            object-fit: contain;
+            background: #fff;
+            padding: 5px;
+            flex-shrink: 0;
+        }
+        .select-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+        .product-select {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+            outline: none;
+            cursor: pointer;
+        }
+        .product-select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+        .history-btn {
+            padding: 12px 18px;
+            background: rgba(102,126,234,0.3);
+            border: 1px solid rgba(102,126,234,0.5);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .history-btn:active {
+            background: rgba(102,126,234,0.5);
+            transform: scale(0.95);
+        }
+        
+        /* 故障按钮网格 */
+        .fault-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 20px;
+        }
+        .fault-btn {
+            background: linear-gradient(135deg, rgba(102,126,234,0.2) 0%, rgba(118,75,162,0.2) 100%);
+            border: 1px solid rgba(102,126,234,0.3);
+            border-radius: 15px;
+            padding: 20px 12px;
+            min-height: 90px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+        .fault-btn:active {
+            transform: scale(0.98);
+            background: linear-gradient(135deg, rgba(102,126,234,0.3) 0%, rgba(118,75,162,0.3) 100%);
+        }
+        .fault-btn .icon {
+            font-size: 32px;
+            margin-bottom: 6px;
+        }
+        .fault-btn .text {
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.3;
+        }
+        
+        /* 消息区域 */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            max-height: 50vh;
+        }
+        .message {
+            margin-bottom: 20px;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message-content {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 15px;
+            line-height: 1.6;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        .message-content strong {
+            color: #667eea;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .message-content ol, .message-content ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .message-content li {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        .warning-box {
+            background: rgba(255,193,7,0.2);
+            border-left: 3px solid #ffc107;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        
+        /* 历史记录弹窗 */
+        .history-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        .history-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .history-content {
+            background: rgba(26,26,46,0.98);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .history-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .history-close {
+            width: 35px;
+            height: 35px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .history-close:active {
+            background: rgba(255,255,255,0.2);
+        }
+        .history-list {
+            list-style: none;
+        }
+        .history-item {
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .history-item:active {
+            background: rgba(102,126,234,0.3);
+            transform: translateX(5px);
+        }
+        .history-item .time {
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+        }
+        .history-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255,255,255,0.5);
+        }
+        .history-empty .icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+        .clear-history {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255,71,87,0.2);
+            border: 1px solid rgba(255,71,87,0.3);
+            border-radius: 10px;
+            color: #ff4757;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.2s;
+        }
+        .clear-history:active {
+            background: rgba(255,71,87,0.3);
+        }
+        
+        /* 输入区域 - 去掉语音按钮 */
+        .input-area {
+            padding: 15px 20px;
+            background: rgba(26,26,46,0.95);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            position: sticky;
+            bottom: 0;
+        }
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 14px 18px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 25px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .chat-input:focus {
+            background: rgba(255,255,255,0.15);
+            border-color: #667eea;
+        }
+        .chat-input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+        .send-btn {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 25px;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* 底部栏 */
+        .footer {
+            padding: 15px 20px;
+            text-align: center;
+            background: rgba(26,26,46,0.95);
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .footer a {
+            color:#667eea;
+            text-decoration:none;
+            font-weight:600;
+            font-size:14px;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .footer .copyright {
+            color:rgba(255,255,255,0.4);
+            font-size:12px;
+        }
+        
+        /* 隐藏滚动条 */
+        ::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+        }
+        
+        /* 移动端优化 */
+        @media (max-width: 480px) {
+            .header {
+                padding: 12px 15px;
+                gap: 8px;
+            }
+            .logo {
+                width: 100px;
+                height: 40px;
+            }
+            .history-btn {
+                padding: 10px 14px;
+                font-size: 13px;
+            }
+            .fault-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+                padding: 15px;
+            }
+            .fault-btn {
+                min-height: 85px;
+                padding: 18px 10px;
+            }
+            .fault-btn .icon {
+                font-size: 28px;
+            }
+            .fault-btn .text {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部栏 -->
+    <div class="header">
+        <img src="logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+        <div class="select-wrapper">
+            <select class="product-select" id="productSelect" onchange="changeProduct()">
+                <option value="润">润</option>
+                <option value="格格【arm】">格格【arm】</option>
+                <option value="格格【x86】">格格【x86】</option>
+                <option value="UP 底盘">UP 底盘</option>
+                <option value="UP 标准舱">UP 标准舱</option>
+                <option value="UP 清扫">UP 清扫</option>
+                <option value="货柜">货柜</option>
+                <option value="电梯">电梯</option>
+                <option value="电话">电话</option>
+                <option value="其他">其他</option>
+            </select>
+        </div>
+        <button class="history-btn" onclick="toggleHistory()" title="历史记录">🕐 历史查询</button>
+    </div>
+    
+    <!-- 故障按钮网格 -->
+    <div class="fault-grid" id="faultGrid"></div>
+    
+    <!-- 消息区域 -->
+    <div class="chat-container" id="chatContainer"></div>
+    
+    <!-- 输入区域 - 无语音按钮 -->
+    <div class="input-area">
+        <div class="input-wrapper">
+            <input type="text" class="chat-input" id="chatInput" placeholder="输入故障现象，如：屏幕黑屏" onkeypress="handleKeyPress(event)">
+            <button class="send-btn" onclick="sendMessage()" title="发送">➤</button>
+        </div>
+    </div>
+    
+    <!-- 底部栏 -->
+    <div class="footer">
+        <a href="tel:400-608-0917">📞 客服热线：400-608-0917</a>
+        <div class="copyright">©2026 云迹科技 机器人维修助手</div>
+    </div>
+    
+    <!-- 历史记录弹窗 -->
+    <div class="history-modal" id="historyModal" onclick="closeHistory(event)">
+        <div class="history-content">
+            <div class="history-header">
+                <h2>🕐 查询历史</h2>
+                <button class="history-close" onclick="toggleHistory()">×</button>
+            </div>
+            <ul class="history-list" id="historyList"></ul>
+            <button class="clear-history" onclick="clearHistory()">清空历史</button>
+        </div>
+    </div>
+    
+    <script src="knowledge-base.js"></script>
+    <script>
+        let currentProduct = '润';
+        let searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+        
+        // 故障按钮配置
+        const faultConfig = {
+            '润': [
+                { icon: '📱', text: '屏幕' },
+                { icon: '🚪', text: '舱门' },
+                { icon: '🔌', text: '充电' },
+                { icon: '👆', text: '触摸' },
+                { icon: '📡', text: '离线' },
+                { icon: '🦿', text: '行走' },
+                { icon: '🔋', text: '开机' },
+                { icon: '🔊', text: '异响' },
+                { icon: '⚡', text: '断电' },
+                { icon: '🔈', text: '声音' }
+            ],
+            '格格【arm】': [
+                { icon: '📱', text: '屏幕' },
+                { icon: '🚪', text: '舱门' },
+                { icon: '🔌', text: '充电' },
+                { icon: '👆', text: '触摸' },
+                { icon: '📡', text: '离线' },
+                { icon: '🦿', text: '行走' },
+                { icon: '🔋', text: '开机' },
+                { icon: '🔊', text: '异响' },
+                { icon: '⚡', text: '断电' },
+                { icon: '🔈', text: '声音' }
+            ],
+            '格格【x86】': [
+                { icon: '📱', text: '屏幕' },
+                { icon: '🚪', text: '舱门' },
+                { icon: '🔌', text: '充电' },
+                { icon: '👆', text: '触摸' },
+                { icon: '📡', text: '离线' },
+                { icon: '🦿', text: '行走' },
+                { icon: '🔋', text: '开机' },
+                { icon: '🔊', text: '异响' },
+                { icon: '⚡', text: '断电' },
+                { icon: '🔈', text: '声音' }
+            ],
+            'UP 底盘': [
+                { icon: '📱', text: '屏幕' },
+                { icon: '🚪', text: '舱门' },
+                { icon: '🔌', text: '充电' },
+                { icon: '👆', text: '触摸' },
+                { icon: '📡', text: '离线' },
+                { icon: '🦿', text: '行走' },
+                { icon: '🔋', text: '开机' },
+                { icon: '🔊', text: '异响' },
+                { icon: '⚡', text: '断电' },
+                { icon: '🔈', text: '声音' }
+            ],
+            'UP 标准舱': [
+                { icon: '📱', text: '屏幕' },
+                { icon: '🚪', text: '舱门' },
+                { icon: '🔌', text: '充电' },
+                { icon: '👆', text: '触摸' },
+                { icon: '📡', text: '离线' },
+                { icon: '🦿', text: '行走' },
+                { icon: '🔋', text: '开机' },
+                { icon: '🔊', text: '异响' },
+                { icon: '⚡', text: '断电' },
+                { icon: '🔈', text: '声音' }
+            ],
+            'UP 清扫': [
+                { icon: '📱', text: '屏幕' },
+                { icon: '🚪', text: '舱门' },
+                { icon: '🔌', text: '充电' },
+                { icon: '👆', text: '触摸' },
+                { icon: '📡', text: '离线' },
+                { icon: '🦿', text: '行走' },
+                { icon: '🔋', text: '开机' },
+                { icon: '🔊', text: '异响' },
+                { icon: '⚡', text: '断电' },
+                { icon: '🔈', text: '声音' }
+            ],
+            '货柜': [
+                { icon: '📱', text: '屏幕' },
+                { icon: '🚪', text: '舱门' },
+                { icon: '🔌', text: '充电' },
+                { icon: '👆', text: '触摸' },
+                { icon: '📡', text: '离线' },
+                { icon: '🦿', text: '行走' },
+                { icon: '🔋', text: '开机' },
+                { icon: '🔊', text: '异响' },
+                { icon: '⚡', text: '断电' },
+                { icon: '🔈', text: '声音' }
+            ],
+            '电梯': [
+                { icon: '🏢', text: '9 系列' },
+                { icon: '🏢', text: '5 系列' },
+                { icon: '❓', text: '其他' }
+            ],
+            '电话': [
+                { icon: '☎️', text: '4.0' },
+                { icon: '☎️', text: '2.0' }
+            ],
+            '其他': [
+                { icon: '📱', text: '屏幕' },
+                { icon: '🚪', text: '舱门' },
+                { icon: '🔌', text: '充电' },
+                { icon: '❓', text: '其他' }
+            ]
+        };
+        
+        // 渲染故障按钮
+        function renderFaultButtons() {
+            const grid = document.getElementById('faultGrid');
+            const faults = faultConfig[currentProduct] || faultConfig['润'];
+            
+            grid.innerHTML = '';
+            faults.forEach(fault => {
+                const btn = document.createElement('div');
+                btn.className = 'fault-btn';
+                btn.innerHTML = `
+                    <div class="icon">${fault.icon}</div>
+                    <div class="text">${fault.text}</div>
+                `;
+                btn.onclick = () => searchFault(fault.text);
+                grid.appendChild(btn);
+            });
+        }
+        
+        // 切换产品
+        function changeProduct() {
+            const select = document.getElementById('productSelect');
+            currentProduct = select.value;
+            renderFaultButtons();
+            document.getElementById('chatContainer').innerHTML = '';
+        }
+        
+        // 搜索故障
+        function searchFault(keyword) {
+            const input = document.getElementById('chatInput');
+            input.value = keyword;
+            addToHistory(keyword);
+            sendMessage();
+        }
+        
+        // 添加到历史记录
+        function addToHistory(keyword) {
+            const now = new Date();
+            const timeStr = now.toLocaleString('zh-CN', { 
+                month: '2-digit', 
+                day: '2-digit', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            searchHistory = searchHistory.filter(item => item.keyword !== keyword);
+            searchHistory.unshift({
+                keyword: keyword,
+                time: timeStr,
+                timestamp: now.getTime()
+            });
+            
+            if (searchHistory.length > 20) {
+                searchHistory = searchHistory.slice(0, 20);
+            }
+            
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+        }
+        
+        // 显示历史记录
+        function toggleHistory() {
+            const modal = document.getElementById('historyModal');
+            const list = document.getElementById('historyList');
+            
+            if (modal.classList.contains('show')) {
+                modal.classList.remove('show');
+            } else {
+                if (searchHistory.length === 0) {
+                    list.innerHTML = `
+                        <div class="history-empty">
+                            <div class="icon">🕐</div>
+                            <div>暂无查询历史</div>
+                        </div>
+                    `;
+                } else {
+                    list.innerHTML = searchHistory.map((item, index) => `
+                        <li class="history-item" onclick="searchFault('${item.keyword}')">
+                            <span style="flex:1;font-weight:500;">${item.keyword}</span>
+                            <span class="time">${item.time}</span>
+                        </li>
+                    `).join('');
+                }
+                modal.classList.add('show');
+            }
+        }
+        
+        // 关闭历史弹窗
+        function closeHistory(event) {
+            if (event.target.id === 'historyModal') {
+                document.getElementById('historyModal').classList.remove('show');
+            }
+        }
+        
+        // 清空历史
+        function clearHistory() {
+            if (confirm('确定要清空所有查询历史吗？')) {
+                searchHistory = [];
+                localStorage.setItem('searchHistory', JSON.stringify([]));
+                toggleHistory();
+            }
+        }
+        
+        // 发送消息
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const query = input.value.trim();
+            if (!query) return;
+            
+            addToHistory(query);
+            
+            const container = document.getElementById('chatContainer');
+            const results = searchKnowledge(query);
+            
+            container.innerHTML = '';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = `<div class="message-content">${results}</div>`;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+            
+            input.value = '';
+        }
+        
+        // 搜索知识库
+        function searchKnowledge(query) {
+            query = query.toLowerCase();
+            let results = [];
+            
+            if (knowledgeBase.faults && Array.isArray(knowledgeBase.faults)) {
+                for (const category of knowledgeBase.faults) {
+                    if (category.items && Array.isArray(category.items)) {
+                        for (const item of category.items) {
+                            if (matchesQuery(item, query)) {
+                                results.push(item);
+                            }
+                        }
+                    }
+                }
+            } else if (Array.isArray(knowledgeBase)) {
+                for (const item of knowledgeBase) {
+                    if (matchesQuery(item, query)) {
+                        results.push(item);
+                    }
+                }
+            }
+            
+            if (results.length > 0) {
+                return formatResult(results[0]);
+            } else {
+                return `
+                    <div style="text-align:center;padding:20px;">
+                        <div style="font-size:40px;margin-bottom:10px;">🔍</div>
+                        <div>未找到匹配的故障</div>
+                        <div style="color:rgba(255,255,255,0.5);font-size:13px;margin-top:10px;">
+                            请尝试其他关键词或拨打客服热线：400-608-0917
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // 匹配查询
+        function matchesQuery(item, query) {
+            if (item.symptom && item.symptom.toLowerCase().includes(query)) return true;
+            if (item.category && item.category.toLowerCase().includes(query)) return true;
+            if (item.causes) {
+                for (const cause of item.causes) {
+                    if (cause.toLowerCase().includes(query)) return true;
+                }
+            }
+            if (item.solutions) {
+                for (const solution of item.solutions) {
+                    if (solution.toLowerCase().includes(query)) return true;
+                }
+            }
+            return false;
+        }
+        
+        // 格式化结果
+        function formatResult(item) {
+            let html = `<strong>📋 ${item.symptom || item['故障现象'] || '故障'}</strong>`;
+            
+            if (item.causes && item.causes.length > 0) {
+                html += `<div style="margin:15px 0;">`;
+                html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">🔍 可能原因：</div>`;
+                html += `<ol style="margin:0;padding-left:20px;">`;
+                item.causes.forEach((cause, i) => {
+                    html += `<li style="margin:8px 0;">${cause}</li>`;
+                });
+                html += `</ol>`;
+                html += `</div>`;
+            }
+            
+            if (item.solutions && item.solutions.length > 0) {
+                html += `<div style="margin:15px 0;">`;
+                html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">🔧 排查步骤：</div>`;
+                html += `<ol style="margin:0;padding-left:20px;">`;
+                item.solutions.forEach((step, i) => {
+                    html += `<li style="margin:8px 0;">${step}</li>`;
+                });
+                html += `</ol>`;
+                html += `</div>`;
+            }
+            
+            return html;
+        }
+        
+        // 回车发送
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        // 初始化
+        renderFaultButtons();
+    </script>
+</body>
+</html>
