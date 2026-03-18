@@ -470,22 +470,8 @@
     
     <script src="knowledge-base.js"></script>
     <script>
-        // ========== 百度语音识别配置 ==========
-        const BAIDU_CONFIG = {
-            appId: '7531325',
-            apiKey: '1ORg9uMVohRTwld1mgr1hNZd',
-            secretKey: 'SqcHczxD27wYKqZHfzw9WVDesLpAp2OS'
-        };
-        
         let currentProduct = '润';
         let searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
-        
-        // 语音相关
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let isRecording = false;
-        let touchStartTime = 0;
-        let accessToken = '';
         
         // 故障按钮配置
         const faultConfig = {
@@ -589,261 +575,6 @@
                 { icon: '❓', text: '其他' }
             ]
         };
-        
-        // 获取百度 Access Token
-        async function getBaiduAccessToken() {
-            try {
-                const response = await fetch(`https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${BAIDU_CONFIG.apiKey}&client_secret=${BAIDU_CONFIG.secretKey}`);
-                const data = await response.json();
-                if (data.access_token) {
-                    accessToken = data.access_token;
-                    console.log('✅ 获取百度 Access Token 成功');
-                    return true;
-                } else {
-                    console.error('❌ 获取百度 Access Token 失败:', data);
-                    return false;
-                }
-            } catch(e) {
-                console.error('❌ 获取百度 Access Token 异常:', e);
-                return false;
-            }
-        }
-        
-        // 百度语音识别（使用极速版 API，支持 webm 格式）
-        async function recognizeWithBaidu(audioBlob) {
-            const tip = document.getElementById('voiceTip');
-            
-            try {
-                // 转换为 PCM 格式（16k 采样率，16bit，单声道）
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-                const arrayBuffer = await audioBlob.arrayBuffer();
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                // 转换为 PCM 数据
-                const pcmData = audioBuffer.getChannelData(0);
-                const pcm16 = new Int16Array(pcmData.length);
-                for (let i = 0; i < pcmData.length; i++) {
-                    pcm16[i] = Math.max(-1, Math.min(1, pcmData[i])) * 0x7FFF;
-                }
-                
-                // 转换为 base64
-                const base64Audio = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
-                
-                console.log('📊 音频数据大小:', pcm16.length, '采样点');
-                
-                // 调用百度语音识别 API（极速版）
-                const response = await fetch(`https://vop.baidu.com/server_api?access_token=${accessToken}&cuid=robot-maintenance-bot&token=${accessToken}&lan=zh`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        format: 'pcm',
-                        rate: 16000,
-                        channel: 1,
-                        cuid: 'robot-maintenance-bot',
-                        token: accessToken,
-                        speech: base64Audio,
-                        len: pcm16.length * 2  // 16bit = 2 bytes
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.err_no === 0) {
-                    const result = data.result[0];
-                    console.log('✅ 百度语音识别成功:', result);
-                    return result;
-                } else {
-                    console.error('❌ 百度语音识别失败:', data);
-                    throw new Error(data.err_msg || '识别失败 (错误码：' + data.err_no + ')');
-                }
-            } catch(e) {
-                console.error('❌ 百度语音识别异常:', e);
-                throw e;
-            }
-        }
-        
-        // 初始化语音（使用 MediaRecorder API + 百度语音识别）
-        async function initVoice() {
-            const voiceBtn = document.getElementById('voiceBtn');
-            const voiceTip = document.getElementById('voiceTip');
-            
-            // 检查浏览器支持
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                voiceBtn.style.display = 'none';
-                voiceTip.textContent = '您的浏览器不支持语音输入';
-                return;
-            }
-            
-            try {
-                // 获取百度 Access Token
-                const tokenSuccess = await getBaiduAccessToken();
-                if (!tokenSuccess) {
-                    voiceTip.textContent = '⚠️ 语音服务初始化失败，请刷新页面重试';
-                    return;
-                }
-                
-                // 请求麦克风权限
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        sampleRate: 16000,
-                        channelCount: 1,
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    } 
-                });
-                
-                // 创建 MediaRecorder（不设置 timeslice，持续录音）
-                mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: 'audio/webm;codecs=opus',
-                    audioBitsPerSecond: 128000
-                });
-                
-                mediaRecorder.ondataavailable = function(event) {
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
-                        console.log('📊 录音数据块:', event.data.size, 'bytes');
-                    }
-                };
-                
-                mediaRecorder.onstop = async function() {
-                    const btn = document.getElementById('voiceBtn');
-                    const tip = document.getElementById('voiceTip');
-                    
-                    btn.classList.remove('listening');
-                    isRecording = false;
-                    
-                    console.log('🛑 录音停止');
-                    
-                    // 录音时长小于 0.5 秒，视为误触
-                    const duration = Date.now() - touchStartTime;
-                    if (duration < 500) {
-                        tip.textContent = '⏱️ 录音时间太短，请重新录制';
-                        setTimeout(() => {
-                            tip.textContent = '🎤 长按说话，松开发送';
-                        }, 2000);
-                        audioChunks = [];
-                        return;
-                    }
-                    
-                    console.log('⏱️ 录音时长:', duration, 'ms');
-                    
-                    // 创建音频 Blob
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    audioChunks = [];
-                    
-                    console.log('📊 音频 Blob 大小:', audioBlob.size, 'bytes');
-                    
-                    tip.textContent = '🔄 正在识别语音...';
-                    
-                    try {
-                        // 使用百度语音识别
-                        const text = await recognizeWithBaidu(audioBlob);
-                        if (text) {
-                            const input = document.getElementById('chatInput');
-                            input.value = text;
-                            sendMessage();
-                            tip.textContent = '✅ 识别成功';
-                            setTimeout(() => {
-                                tip.textContent = '🎤 长按说话，松开发送';
-                            }, 2000);
-                        }
-                    } catch(e) {
-                        console.error('语音识别失败:', e);
-                        tip.textContent = '❌ 识别失败：' + e.message;
-                        setTimeout(() => {
-                            tip.textContent = '🎤 长按说话，松开发送';
-                        }, 5000);
-                    }
-                };
-                
-                mediaRecorder.onerror = function(event) {
-                    console.error('❌ MediaRecorder 错误:', event.error);
-                    const tip = document.getElementById('voiceTip');
-                    tip.textContent = '❌ 录音错误：' + event.error;
-                    isRecording = false;
-                    mediaRecorder.stop();
-                };
-                
-                console.log('✅ 语音功能初始化成功');
-                voiceTip.textContent = '🎤 长按说话，松开发送';
-                
-            } catch(e) {
-                console.error('❌ 语音功能初始化失败:', e);
-                voiceBtn.style.display = 'none';
-                voiceTip.textContent = '❌ 无法使用语音（请检查麦克风权限）';
-            }
-        }
-        
-        // 触摸事件处理（长按说话）
-        function setupTouchEvents() {
-            const voiceBtn = document.getElementById('voiceBtn');
-            
-            // 触摸开始
-            voiceBtn.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                console.log('👆 touchstart');
-                if (!isRecording && mediaRecorder && mediaRecorder.state === 'inactive') {
-                    audioChunks = [];
-                    touchStartTime = Date.now();
-                    mediaRecorder.start();  // 不设置 timeslice，持续录音
-                    this.classList.add('listening');
-                    isRecording = true;
-                    document.getElementById('voiceTip').textContent = '🔴 正在录音，请说话...';
-                    console.log('▶️ 开始录音');
-                }
-            }, { passive: false });
-            
-            // 触摸结束
-            voiceBtn.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                console.log('👆 touchend');
-                if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                    console.log('⏹️ 停止录音');
-                }
-            }, { passive: false });
-            
-            // 触摸取消
-            voiceBtn.addEventListener('touchcancel', function(e) {
-                e.preventDefault();
-                console.log('👆 touchcancel');
-                if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                }
-            }, { passive: false });
-            
-            // 鼠标事件（桌面端）
-            voiceBtn.addEventListener('mousedown', function(e) {
-                console.log('🖱️ mousedown');
-                if (!isRecording && mediaRecorder && mediaRecorder.state === 'inactive') {
-                    audioChunks = [];
-                    touchStartTime = Date.now();
-                    mediaRecorder.start();
-                    this.classList.add('listening');
-                    isRecording = true;
-                    document.getElementById('voiceTip').textContent = '🔴 正在录音，请说话...';
-                    console.log('▶️ 开始录音');
-                }
-            });
-            
-            voiceBtn.addEventListener('mouseup', function(e) {
-                console.log('🖱️ mouseup');
-                if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                    console.log('⏹️ 停止录音');
-                }
-            });
-            
-            voiceBtn.addEventListener('mouseleave', function(e) {
-                console.log('🖱️ mouseleave');
-                if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                }
-            });
-        }
         
         // 渲染故障按钮
         function renderFaultButtons() {
@@ -979,22 +710,27 @@
             query = query.toLowerCase();
             let results = [];
             
-            for (const item of knowledgeBase) {
-                // 产品筛选
-                const productMatch = item['产品'] === currentProduct || 
-                                    item['产品'] === '通用' ||
-                                    (item['产品别名'] && item['产品别名'].some(alias => alias === currentProduct));
-                
-                if (!productMatch) continue;
-                
-                // 搜索匹配
-                const symptom = item['故障现象'].toLowerCase();
-                const category = item['故障分类'].toLowerCase();
-                const keywords = item['关键词'] || [];
-                
-                if (symptom.includes(query) || category.includes(query) || 
-                    keywords.some(k => k.toLowerCase().includes(query))) {
-                    results.push(item);
+            // 遍历知识库（支持两种格式）
+            // 格式 1: knowledgeBase.faults[] (嵌套格式)
+            // 格式 2: knowledgeBase[] (扁平格式)
+            
+            if (knowledgeBase.faults && Array.isArray(knowledgeBase.faults)) {
+                // 嵌套格式
+                for (const category of knowledgeBase.faults) {
+                    if (category.items && Array.isArray(category.items)) {
+                        for (const item of category.items) {
+                            if (matchesQuery(item, query)) {
+                                results.push(item);
+                            }
+                        }
+                    }
+                }
+            } else if (Array.isArray(knowledgeBase)) {
+                // 扁平格式
+                for (const item of knowledgeBase) {
+                    if (matchesQuery(item, query)) {
+                        results.push(item);
+                    }
                 }
             }
             
@@ -1013,52 +749,101 @@
             }
         }
         
+        // 匹配查询
+        function matchesQuery(item, query) {
+            // 检查症状
+            if (item.symptom && item.symptom.toLowerCase().includes(query)) {
+                return true;
+            }
+            
+            // 检查分类
+            if (item.category && item.category.toLowerCase().includes(query)) {
+                return true;
+            }
+            
+            // 检查原因
+            if (item.causes) {
+                for (const cause of item.causes) {
+                    if (cause.toLowerCase().includes(query)) {
+                        return true;
+                    }
+                }
+            }
+            
+            // 检查解决方案
+            if (item.solutions) {
+                for (const solution of item.solutions) {
+                    if (solution.toLowerCase().includes(query)) {
+                        return true;
+                    }
+                }
+            }
+            
+            // 检查关键词
+            if (item.keywords) {
+                for (const keyword of item.keywords) {
+                    if (keyword.toLowerCase().includes(query)) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
+        
         // 格式化结果
         function formatResult(item) {
-            let html = `<strong>📋 ${item['故障现象']}</strong>`;
+            let html = `<strong>📋 ${item.symptom || item['故障现象'] || '故障'}</strong>`;
             
-            html += `<div style="margin:15px 0;">`;
-            html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">🔍 可能原因：</div>`;
-            html += `<ol style="margin:0;padding-left:20px;">`;
-            item['可能原因'].forEach((cause, i) => {
-                html += `<li style="margin:8px 0;">${cause}</li>`;
-            });
-            html += `</ol>`;
-            html += `</div>`;
-            
-            html += `<div style="margin:15px 0;">`;
-            html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">🔧 排查步骤：</div>`;
-            html += `<ol style="margin:0;padding-left:20px;">`;
-            item['排查步骤'].forEach((step, i) => {
-                html += `<li style="margin:8px 0;">${step}</li>`;
-            });
-            html += `</ol>`;
-            html += `</div>`;
-            
-            if (item['需要备件'] && item['需要备件'].length > 0) {
+            if (item.causes && item.causes.length > 0) {
                 html += `<div style="margin:15px 0;">`;
-                html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">📦 需要备件：</div>`;
-                html += `<div style="color:rgba(255,255,255,0.8);">${item['需要备件'].join('、')}</div>`;
+                html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">🔍 可能原因：</div>`;
+                html += `<ol style="margin:0;padding-left:20px;">`;
+                item.causes.forEach((cause, i) => {
+                    html += `<li style="margin:8px 0;">${cause}</li>`;
+                });
+                html += `</ol>`;
                 html += `</div>`;
             }
             
-            if (item['维修难度'] || item['预计时间']) {
-                html += `<div style="display:flex;gap:15px;margin-top:15px;flex-wrap:wrap;">`;
-                if (item['维修难度']) {
-                    html += `<div style="background:rgba(102,126,234,0.2);padding:8px 12px;border-radius:8px;font-size:13px;">`;
-                    html += `<span style="color:#667eea;">难度：</span>${item['维修难度']}`;
-                    html += `</div>`;
-                }
-                if (item['预计时间']) {
-                    html += `<div style="background:rgba(102,126,234,0.2);padding:8px 12px;border-radius:8px;font-size:13px;">`;
-                    html += `<span style="color:#667eea;">时间：</span>${item['预计时间']}`;
-                    html += `</div>`;
-                }
+            if (item.solutions && item.solutions.length > 0) {
+                html += `<div style="margin:15px 0;">`;
+                html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">🔧 排查步骤：</div>`;
+                html += `<ol style="margin:0;padding-left:20px;">`;
+                item.solutions.forEach((step, i) => {
+                    html += `<li style="margin:8px 0;">${step}</li>`;
+                });
+                html += `</ol>`;
                 html += `</div>`;
             }
             
-            if (item['备注']) {
-                html += `<div class="warning-box">💡 ${item['备注']}</div>`;
+            if (item.parts || item['需要备件']) {
+                const parts = item.parts || item['需要备件'];
+                if (parts && parts.length > 0) {
+                    html += `<div style="margin:15px 0;">`;
+                    html += `<div style="color:#667eea;font-weight:600;margin-bottom:8px;">📦 需要备件：</div>`;
+                    html += `<div style="color:rgba(255,255,255,0.8);">${Array.isArray(parts) ? parts.join('、') : parts}</div>`;
+                    html += `</div>`;
+                }
+            }
+            
+            if (item.difficulty || item['维修难度']) {
+                const difficulty = item.difficulty || item['维修难度'];
+                html += `<div style="background:rgba(102,126,234,0.2);padding:8px 12px;border-radius:8px;font-size:13px;display:inline-block;margin-top:10px;">`;
+                html += `<span style="color:#667eea;">难度：</span>${difficulty}`;
+                html += `</div>`;
+            }
+            
+            if (item.time || item['预计时间']) {
+                const time = item.time || item['预计时间'];
+                html += `<div style="background:rgba(102,126,234,0.2);padding:8px 12px;border-radius:8px;font-size:13px;display:inline-block;margin-top:10px;margin-left:10px;">`;
+                html += `<span style="color:#667eea;">时间：</span>${time}`;
+                html += `</div>`;
+            }
+            
+            if (item.note || item['备注']) {
+                const note = item.note || item['备注'];
+                html += `<div class="warning-box">💡 ${note}</div>`;
             }
             
             return html;
@@ -1072,9 +857,6 @@
         }
         
         // 初始化
-        initVoice().then(() => {
-            setupTouchEvents();
-        });
         renderFaultButtons();
     </script>
 </body>
