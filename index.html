@@ -609,29 +609,42 @@
             }
         }
         
-        // 百度语音识别
+        // 百度语音识别（使用极速版 API，支持 webm 格式）
         async function recognizeWithBaidu(audioBlob) {
             const tip = document.getElementById('voiceTip');
             
             try {
-                // 读取音频文件为 ArrayBuffer
+                // 转换为 PCM 格式（16k 采样率，16bit，单声道）
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
                 const arrayBuffer = await audioBlob.arrayBuffer();
-                const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                 
-                // 调用百度语音识别 API
+                // 转换为 PCM 数据
+                const pcmData = audioBuffer.getChannelData(0);
+                const pcm16 = new Int16Array(pcmData.length);
+                for (let i = 0; i < pcmData.length; i++) {
+                    pcm16[i] = Math.max(-1, Math.min(1, pcmData[i])) * 0x7FFF;
+                }
+                
+                // 转换为 base64
+                const base64Audio = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
+                
+                console.log('📊 音频数据大小:', pcm16.length, '采样点');
+                
+                // 调用百度语音识别 API（极速版）
                 const response = await fetch(`https://vop.baidu.com/server_api?access_token=${accessToken}&cuid=robot-maintenance-bot&token=${accessToken}&lan=zh`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        format: 'wav',
+                        format: 'pcm',
                         rate: 16000,
                         channel: 1,
                         cuid: 'robot-maintenance-bot',
                         token: accessToken,
                         speech: base64Audio,
-                        len: audioBlob.size
+                        len: pcm16.length * 2  // 16bit = 2 bytes
                     })
                 });
                 
@@ -643,7 +656,7 @@
                     return result;
                 } else {
                     console.error('❌ 百度语音识别失败:', data);
-                    throw new Error(data.err_msg || '识别失败');
+                    throw new Error(data.err_msg || '识别失败 (错误码：' + data.err_no + ')');
                 }
             } catch(e) {
                 console.error('❌ 百度语音识别异常:', e);
@@ -677,16 +690,21 @@
                         sampleRate: 16000,
                         channelCount: 1,
                         echoCancellation: true,
-                        noiseSuppression: true
+                        noiseSuppression: true,
+                        autoGainControl: true
                     } 
                 });
                 
-                // 创建 MediaRecorder
-                mediaRecorder = new MediaRecorder(stream);
+                // 创建 MediaRecorder（不设置 timeslice，持续录音）
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus',
+                    audioBitsPerSecond: 128000
+                });
                 
                 mediaRecorder.ondataavailable = function(event) {
                     if (event.data.size > 0) {
                         audioChunks.push(event.data);
+                        console.log('📊 录音数据块:', event.data.size, 'bytes');
                     }
                 };
                 
@@ -697,9 +715,11 @@
                     btn.classList.remove('listening');
                     isRecording = false;
                     
-                    // 录音时长小于 1 秒，视为误触
+                    console.log('🛑 录音停止');
+                    
+                    // 录音时长小于 0.5 秒，视为误触
                     const duration = Date.now() - touchStartTime;
-                    if (duration < 1000) {
+                    if (duration < 500) {
                         tip.textContent = '⏱️ 录音时间太短，请重新录制';
                         setTimeout(() => {
                             tip.textContent = '🎤 长按说话，松开发送';
@@ -708,9 +728,13 @@
                         return;
                     }
                     
+                    console.log('⏱️ 录音时长:', duration, 'ms');
+                    
                     // 创建音频 Blob
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     audioChunks = [];
+                    
+                    console.log('📊 音频 Blob 大小:', audioBlob.size, 'bytes');
                     
                     tip.textContent = '🔄 正在识别语音...';
                     
@@ -728,11 +752,19 @@
                         }
                     } catch(e) {
                         console.error('语音识别失败:', e);
-                        tip.textContent = '❌ 识别失败，请手动输入';
+                        tip.textContent = '❌ 识别失败：' + e.message;
                         setTimeout(() => {
                             tip.textContent = '🎤 长按说话，松开发送';
-                        }, 3000);
+                        }, 5000);
                     }
+                };
+                
+                mediaRecorder.onerror = function(event) {
+                    console.error('❌ MediaRecorder 错误:', event.error);
+                    const tip = document.getElementById('voiceTip');
+                    tip.textContent = '❌ 录音错误：' + event.error;
+                    isRecording = false;
+                    mediaRecorder.stop();
                 };
                 
                 console.log('✅ 语音功能初始化成功');
@@ -752,27 +784,32 @@
             // 触摸开始
             voiceBtn.addEventListener('touchstart', function(e) {
                 e.preventDefault();
+                console.log('👆 touchstart');
                 if (!isRecording && mediaRecorder && mediaRecorder.state === 'inactive') {
                     audioChunks = [];
                     touchStartTime = Date.now();
-                    mediaRecorder.start(1000);
+                    mediaRecorder.start();  // 不设置 timeslice，持续录音
                     this.classList.add('listening');
                     isRecording = true;
                     document.getElementById('voiceTip').textContent = '🔴 正在录音，请说话...';
+                    console.log('▶️ 开始录音');
                 }
             }, { passive: false });
             
             // 触摸结束
             voiceBtn.addEventListener('touchend', function(e) {
                 e.preventDefault();
+                console.log('👆 touchend');
                 if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
+                    console.log('⏹️ 停止录音');
                 }
             }, { passive: false });
             
             // 触摸取消
             voiceBtn.addEventListener('touchcancel', function(e) {
                 e.preventDefault();
+                console.log('👆 touchcancel');
                 if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
                 }
@@ -780,23 +817,28 @@
             
             // 鼠标事件（桌面端）
             voiceBtn.addEventListener('mousedown', function(e) {
+                console.log('🖱️ mousedown');
                 if (!isRecording && mediaRecorder && mediaRecorder.state === 'inactive') {
                     audioChunks = [];
                     touchStartTime = Date.now();
-                    mediaRecorder.start(1000);
+                    mediaRecorder.start();
                     this.classList.add('listening');
                     isRecording = true;
                     document.getElementById('voiceTip').textContent = '🔴 正在录音，请说话...';
+                    console.log('▶️ 开始录音');
                 }
             });
             
             voiceBtn.addEventListener('mouseup', function(e) {
+                console.log('🖱️ mouseup');
                 if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
+                    console.log('⏹️ 停止录音');
                 }
             });
             
             voiceBtn.addEventListener('mouseleave', function(e) {
+                console.log('🖱️ mouseleave');
                 if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
                 }
